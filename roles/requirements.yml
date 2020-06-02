@@ -1,0 +1,6 @@
+---
+
+# Wrapper common roles
+
+- src: ssh://git@github.ibm.com/Japan-Ansible-Conversion/ansible-role-swap-usage-trust-unix.git
+  scm: git

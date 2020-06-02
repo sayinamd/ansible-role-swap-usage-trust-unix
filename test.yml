@@ -1,0 +1,22 @@
+
+---
+- hosts: "{{ affected_host }}"
+  gather_facts: true
+  vars:
+    event_data:
+      '{"event_data":{"Incident":{"description":"<nl>MMO<nl>W_T_AD_GLOBAL<nl>
+      ITM_Event<nl>Node: localhost<nl>Summary: Windows Time service down.<nl>"}}}'
+
+    # Extract incident description
+
+    incident_description:
+      "{{ (event_data | from_json)['event_data']['Incident']['description'] }}"
+
+    # Extract affected_host details
+
+    affected_host:
+      "{{ incident_description | regex_replace
+      ('.*Node:\\s+(.*?)\\<nl\\>.*', '\\1') }}"
+
+  roles:
+    - {role: ansible-role-swap-usage-trust-unix}

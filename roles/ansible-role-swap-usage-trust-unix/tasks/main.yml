@@ -1,0 +1,3 @@
+---
+- name: Check OS family
+  include_tasks: "{{ ansible_distribution }}.yml"

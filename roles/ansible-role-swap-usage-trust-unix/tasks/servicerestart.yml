@@ -1,0 +1,34 @@
+- name: extract start and stop command
+  command: echo "{{ item }}"
+  register: results
+
+- set_fact:
+    process_name: "{{ results.stdout | regex_replace(regexp,'\\1') }}"
+    start_cmnd: "{{ results.stdout | regex_replace(regexp2,'\\2') }}"
+    stop_cmnd: "{{ results.stdout | regex_replace(regexp3,'\\3') }}"
+
+  vars:
+    regexp: "(.*),(.*),(.*).*"
+    regexp2: "(.*),(.*),(.*).*"
+    regexp3: "(.*),(.*),(.*).*"
+- debug:
+    msg: "{{ process_name }}"
+
+- name: check process exist
+  shell: echo "{{ largest_mem_user_output }}" | grep "{{ process_name }}"
+  register: process_out
+
+- name: stop process
+  shell: "{{ stop_cmnd }}"
+  register: stop_out
+  when: process_out.rc == 0
+
+- name: start process
+  shell: "{{ start_cmnd }}"
+  register: start_out
+  when: stop_out.rc == 0
+
+- name: check process status
+  shell: ps -ef | grep "{{ process_name }}"
+  register: status_out
+  when: stop_out.rc == 0

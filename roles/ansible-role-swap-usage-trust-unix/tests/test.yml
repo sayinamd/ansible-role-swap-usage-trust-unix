@@ -1,0 +1,38 @@
+---
+- hosts: '{{ affected_host }}'
+## Read incident data and override role default variables.
+##
+  vars:
+    # Event data JSON object (from listener).
+    event_data: '{"event_data":{"Incident":{"Abstract":"localhost server","Description":"Summary: description goes here.","FlexFields":{"ITEM":"Note filed goes here"}}}}'
+
+    # Extract Incident Abstract.
+    incident_abstract: "{{ (event_data | from_json)['event_data']['Incident']['Abstract'] }}"
+    # Extract the affected_host from Incident Abstract.
+    affected_host: "{{ incident_abstract | regex_replace('(\\w+) server$', '\\1') }}"
+
+  tasks:
+    #
+    #  Initialize return values.
+    # 
+    #  Note:  special variable ansible_play_name is supposed to contain the playbook name starting with ansible v2.8.
+    #  However, the RHEL Open Client currently provides v2.7. We may want to control this name (regardless of the actual play name).
+    # 
+    - set_fact:
+        exec_automation: "ansible-role-swap-Usage-trust-unix"
+
+
+    #
+    #  Invoke incident-data role to initialize incident custom stats (to send results to the Tower Workflow just in case the playbook fails).
+    #  Note:  we need to pass a variable to the incident-data role to be able to invoke it twice!
+    #
+
+    #
+    #  Invole role to restart affected_service.  Results are stored in the following role facts:
+    #
+    - import_role:
+        name: ansible-role-swap-usage-trust-unix
+    #
+    #  Invoke incident-data role to finalize incident custom stats (to send results to the Tower Workflow).
+    #  Note:  we need to pass a variable to the incident-data role to be able to invoke it twice!
+    #

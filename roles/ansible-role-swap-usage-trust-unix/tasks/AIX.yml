@@ -1,0 +1,83 @@
+    - name: Export Lang
+      command: export LC_ALL=C
+      register: output
+      ignore_errors: true
+      changed_when: false
+
+    - name: run svmon
+      command: svmon -P -O summary=basic,sortseg=pgsp,unit=MB|head -50
+      register: svmon_output
+      ignore_errors: true
+      changed_when: false
+
+    - name: vmstat output
+      command: 'vmstat 1 5'
+      register: vmstat_out
+      ignore_errors: true
+      changed_when: false
+
+    - name: Memory Statistics
+      command: ps aux | head -1; ps aux | sort -rn +3 | head -5
+      register: memory_statistics
+      changed_when: false
+
+    - name: Largest memory User
+      command: svmon -G -O summary=basic,unit=MB
+      register: largest_mem_user_output
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check if file exist
+      shell: 'test -f {{ src_file }}'
+      register: test_out
+      ignore_errors: true
+      changed_when: false
+
+    - name: Fact for Diagnosis
+      set_fact:
+        exec_success: false
+        exec_changed: false
+        exec_rc: 2
+        exec_message: "File Does not exists"
+    - debug: var=exec_message
+      when: test_out.rc == 1
+      ignore_errors: true
+
+    - name: Get file content
+      shell: 'cat {{ src_file }}'
+      register: file_content
+      ignore_errors: true
+      changed_when: false
+      when: test_out.rc == 0
+
+    - block:
+        - name: execute command
+          vars:
+            data:
+              "{{ file_content.stdout.split('\n') }}"
+          include_tasks: servicerestart.yml
+          loop:
+            "{{ data }}"
+          when: test_out.rc == 0
+
+        - name: Fact for Remediation
+          set_fact:
+            exec_success: true
+            exec_changed: false
+            exec_rc: 0
+            exec_message: "stop/start process was successfull"
+        - debug: var=exec_message
+          ignore_errors: true
+          when: status_out is defined or status_out.rc == 0 or test_out.rc == 0
+
+      rescue:
+        - name: Set facts for Diagnosis
+          set_fact:
+            exec_success: false
+            exec_changed: true
+            exec_rc: 5
+            exec_message: >
+             "Unable to stop start the process."
+        - debug: var=exec_message
+          ignore_errors: true
+          when: process_out.rc!=0 or stop_out.rc!=0 or start_out.rc!=0 or status_out.rc!=0

@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Sayed Ibrahim
+  description: >
+     Get host information from alert
+     Check if the list file exist on default path
+     Determine the largest swap space users
+     If list file exist check for the process which needs to be verified
+     Stop and Start the process for largest memory user if found in file path
+  company: IBM Corp
+  license: IBM Intellectual Property
+  min_ansible_version: 2.9
+  platforms:
+    - name: Unix
+      versions:
+        - all
+  galaxy_tags:
+    - unix
+    - processhandler
+    - indevelopment
+    - eventautomation
+  dependencies: []

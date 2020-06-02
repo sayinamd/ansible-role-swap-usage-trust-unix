@@ -1,0 +1,96 @@
+    - name: Determine the largest swap space users using proc/status
+      shell: |
+        for file in /proc/*/status;
+        do awk '/VmSwap|Name|VmSize/{printf "%-8s%16s%3s ",$1,$2,$3}END{ print ""}' $file;
+        done|sort -n -rk 7|grep VmSwap;
+      register: largest_process_out
+      ignore_errors: true
+      changed_when: false
+
+    - name: Determine the largest swap space users
+      shell: |
+        SUM=0;
+        OVERALL=0;
+        for DIR in `find /proc/ -maxdepth 1 -type d | egrep "^/proc/[0-9]"`;
+        do PID=`echo $DIR | cut -d / -f 3`;PROGNAME=`ps -p $PID -o comm --no-headers`;
+        for SWAP in `grep Swap: $DIR/smaps 2>/dev/null| awk '{ print $2 }'`;
+        do let SUM=$SUM+$SWAP
+        done;echo "Swap used: $SUM - ($PROGNAME )";
+        let OVERALL=$OVERALL+$SUM;SUM=0;done | sort -nr -k+3 | head -50;
+      register: swap_used_report
+      ignore_errors: true
+      changed_when: false
+
+    - name: vmstat output
+      command: 'vmstat 1 5'
+      register: vmstat_out
+      ignore_errors: true
+      changed_when: false
+
+    - name: Memory Statistics
+      command: 'cat /proc/meminfo'
+      register: memory_statistics
+      changed_when: false
+
+    - name: Largest memory User
+      shell: 'ps aux --sort=-%mem | head -11'
+      register: largest_mem_user_output
+      ignore_errors: true
+      changed_when: false
+
+    - debug:
+        msg: "{{ largest_mem_user_output.stdout }}"
+
+    - name: Check if file exist
+      command: 'test -f {{ src_file }}'
+      register: test_out
+      ignore_errors: true
+
+    - name: Get file content
+      command: 'cat {{ src_file }}'
+      register: file_content
+      ignore_errors: true
+      changed_when: false
+      when: test_out.rc == 0
+
+    - name: Fact for Diagnosis
+      set_fact:
+        exec_success: false
+        exec_changed: false
+        exec_rc: 2
+        exec_message: "File Does not exists"
+    - debug: var=exec_message
+      ignore_errors: true
+      when: test_out.rc!= 0
+
+    - block:
+      - name: execute command
+        vars:
+          data:
+            "{{ file_content.stdout.split('\n') }}"
+        include_tasks: servicerestart.yml
+        loop:
+          "{{ data }}"
+        when: test_out.rc == 0
+
+      - name: Fact for Remediation
+        set_fact:
+          exec_success: true
+          exec_changed: false
+          exec_rc: 0
+          exec_message: "stop/start process was successfull"
+      - debug: var=exec_message
+        ignore_errors: true
+        when: status_out is not skipped and status_out.rc == 0
+
+      rescue:
+      - name: Set facts for Diagnosis
+        set_fact:
+          exec_success: false
+          exec_changed: true
+          exec_rc: 5
+          exec_message: >
+           "Unable to stop start the process"
+      - debug: var=exec_message
+        ignore_errors: true
+        when: process_out.rc!=0 or stop_out.rc!=0 or start_out.rc!=0 or status_out.rc!=0

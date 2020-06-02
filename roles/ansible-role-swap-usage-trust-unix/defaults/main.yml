@@ -1,0 +1,5 @@
+---
+# defaults file for ansible-role-process-handler-trust
+# Source File from where affected process details to be retrived from.
+# /kanri/SwapUsage.lst
+src_file: /kanri/SwapUsage.lst
